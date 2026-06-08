@@ -1,0 +1,321 @@
+"""
+MADURO — MySQL Fetcher v2
+Batch processor for ALL 53,404 FBM SKUs
+"""
+from datetime import datetime, timedelta, timezone, date
+from config.mysql import mysql_query
+from config.db import query
+
+BATCH_SIZE = 500
+
+def get_windows():
+    today = date.today()
+    return {
+        "3m":  (today - timedelta(days=90), today),
+        "30d": (today - timedelta(days=30), today),
+        "10d": (today - timedelta(days=10), today),
+        "5d":  (today - timedelta(days=5),  today),
+    }
+
+def get_all_skus():
+    rows1 = mysql_query('order_management', """
+        SELECT DISTINCT oii.oii_item_sku AS sku, ep.item_id, ep.parent_sku
+        FROM order_item_info oii
+        JOIN `order` o ON oii.oii_order_id = o.order_id
+          AND o.order_date >= DATE_SUB(CURDATE(), INTERVAL 90 DAY)
+        JOIN listing_management.ebay_products ep ON ep.sku = oii.oii_item_sku
+        WHERE o.order_market_place = '23'
+          AND o.order_status IN ('completed','refunded')
+          AND ep.which_channel = 'amazon'
+          AND ep.fulfilment = 'merchant'
+          AND ep.is_deleted = 0
+          AND oii.oii_item_sku IS NOT NULL
+    """)
+
+    rows2 = mysql_query('order_management', """
+        SELECT oii.oii_item_sku AS sku
+        FROM order_item_info oii
+          AND o.order_date >= DATE_SUB(CURDATE(), INTERVAL 90 DAY)
+        JOIN `order` o ON oii.oii_order_id = o.order_id
+        WHERE o.order_sub_source IN (6,8)
+          AND o.order_market_place = '23'
+          AND o.order_status IN ('completed','refunded')
+          AND oii.oii_item_sku IS NOT NULL
+    """)
+
+    seen = set()
+    rows = []
+    for r in rows1 + rows2:
+        if r['sku'] not in seen:
+            seen.add(r['sku'])
+            rows.append(r)
+
+    print(f"Total FBM SKUs: {len(rows)}")
+    return rows
+def get_ph_mapping():
+    rows = mysql_query('order_management', """
+        SELECT ep.sku,
+               CONCAT(u.user_firstname,' ',u.user_lastname) AS ph_holder
+        FROM listing_management.ebay_products ep
+        JOIN ph_cate_products pc ON ep.item_id = pc.ref_id
+        JOIN ph_categories cat ON pc.ass_cate_id = cat.id
+        JOIN user u ON cat.user_id = u.user
+        WHERE ep.which_channel = 'amazon'
+          AND ep.fulfilment = 'merchant'
+          AND pc.which_channel = 1
+          AND ep.sku IS NOT NULL
+        GROUP BY ep.sku
+    """)
+    return {r["sku"]: r["ph_holder"] for r in rows}
+
+def fetch_orders_for_skus(sku_batch, start, end):
+    if not sku_batch:
+        return []
+    placeholders = ",".join(["%s"] * len(sku_batch))
+    return mysql_query("order_management", f"""
+        SELECT
+            o.order_id,
+            o.order_shipping_cost,
+            o.order_discount,
+            o.order_tax,
+            oii.oii_item_sku      AS sku,
+            oii.oii_item_asin     AS asin,
+            oii.oii_item_price    AS item_price,
+            oii.oii_item_quantity AS quantity
+        FROM `order` o
+        JOIN order_item_info oii ON o.order_id = oii.oii_order_id
+        WHERE o.order_date BETWEEN %s AND %s
+          AND o.order_status IN ('completed','refunded')
+          AND (o.order_market_place = '23' OR o.order_sub_source IN (6,8))
+          AND oii.oii_item_sku IN ({placeholders})
+    """, (start, end, *sku_batch))
+
+def fetch_fees_for_orders(order_ids):
+    if not order_ids:
+        return {}
+    placeholders = ",".join(["%s"] * len(order_ids))
+    rows = mysql_query("accounts_management", f"""
+        SELECT order_id,
+               SUM(amz_fee) AS amz_fee,
+               SUM(other)   AS amz_other
+        FROM amz_transactions
+        WHERE order_id IN ({placeholders})
+        GROUP BY order_id
+    """, tuple(order_ids))
+    return {r["order_id"]: r for r in rows}
+
+def fetch_ppc_for_skus(sku_batch, start, end):
+    if not sku_batch:
+        return {}
+    placeholders = ",".join(["%s"] * len(sku_batch))
+    rows = mysql_query("ppc", f"""
+        SELECT p.amzSKU AS sku, SUM(pd.spend) AS ppc_spend
+        FROM performance_data pd
+        JOIN ads a  ON pd.adId = a.adId
+        JOIN products p ON a.productId = p.productId
+        WHERE pd.date BETWEEN %s AND %s
+          AND p.amzSKU IN ({placeholders})
+          AND a.storeMarketPlaceId IN (
+              SELECT smp.storeMarketPlaceId
+              FROM store_market_places_dev smp
+              JOIN seller_stores ss ON smp.sellerStoreId = ss.sellerStoreId
+              WHERE ss.regionId = 2
+          )
+        GROUP BY p.amzSKU
+    """, (start, end, *sku_batch))
+    return {r["sku"]: float(r["ppc_spend"] or 0) for r in rows}
+
+def fetch_refunds_for_skus(sku_batch, start, end):
+    if not sku_batch:
+        return {}
+    placeholders = ",".join(["%s"] * len(sku_batch))
+    rows = mysql_query("message_app", f"""
+        SELECT sku, SUM(refunded_amount) AS refund_amount
+        FROM amazon_returns
+        WHERE request_date BETWEEN %s AND %s
+          AND mp_text = 'UK'
+          AND sku IN ({placeholders})
+        GROUP BY sku
+    """, (start, end, *sku_batch))
+    return {r["sku"]: float(r["refund_amount"] or 0) for r in rows}
+
+def calc_sku_economics(orders, fees_map, ppc_map, refund_map):
+    sku_data = {}
+    order_totals = {}
+
+    for row in orders:
+        oid = row["order_id"]
+        val = float(row["item_price"] or 0) * int(row["quantity"] or 0)
+        order_totals[oid] = order_totals.get(oid, 0) + val
+
+    for row in orders:
+        sku = row["sku"]
+        if not sku:
+            continue
+        oid   = row["order_id"]
+        qty   = int(row["quantity"] or 0)
+        price = float(row["item_price"] or 0)
+        ship  = float(row["order_shipping_cost"] or 0)
+        tax   = float(row["order_tax"] or 0)
+        disc  = float(row["order_discount"] or 0)
+        asin  = row.get("asin")
+
+        sku_val   = price * qty
+        order_tot = order_totals.get(oid, sku_val) or sku_val
+        weight    = sku_val / order_tot if order_tot > 0 else 1.0
+        customer_paid = sku_val + (ship*weight) + (tax*weight) - (disc*weight)
+
+        if sku not in sku_data:
+            sku_data[sku] = {
+                "sku": sku, "asin": asin,
+                "customer_paid": 0, "listing_price": 0,
+                "orders": set(), "quantity": 0,
+                "amz_fee": 0, "amz_other": 0,
+                "postage": 0, "ppc": 0, "refund": 0
+            }
+
+        sku_data[sku]["customer_paid"]  += customer_paid
+        sku_data[sku]["listing_price"]  += price * qty
+        sku_data[sku]["orders"].add(oid)
+        sku_data[sku]["quantity"]       += qty
+
+        fees = fees_map.get(oid, {})
+        sku_data[sku]["postage"]   += ship * weight
+        sku_data[sku]["amz_fee"]   += abs(float(fees.get("amz_fee") or 0)) * weight
+        sku_data[sku]["amz_other"] += float(fees.get("amz_other") or 0) * weight
+
+    for sku, d in sku_data.items():
+        d["ppc"]    = ppc_map.get(sku, 0)
+        d["refund"] = refund_map.get(sku, 0)
+        d["orders"] = len(d["orders"])
+
+        cp           = d["customer_paid"]
+        lp           = d["listing_price"]
+        product_cost = lp * 0.20
+        vat          = cp * 0.20
+
+        d["product_cost"]   = product_cost
+        d["vat"]            = vat
+        d["total_income"]   = cp
+        d["total_expenses"] = (
+            d["amz_fee"] + d["amz_other"] + d["postage"] +
+            d["refund"] + product_cost + vat + d["ppc"]
+        )
+        d["nnr"]        = d["total_income"] - d["total_expenses"]
+        d["nnr_pct"]    = (d["nnr"] / cp * 100) if cp > 0 else None
+        d["margin_pct"] = d["nnr_pct"]
+        d["postage_pct"] = (d["postage"] / cp * 100) if cp > 0 else 0
+
+    return sku_data
+
+def fetch_and_load(run_id):
+    print(f"\n🔄 MADURO Fetcher v2 — {run_id}")
+    windows  = get_windows()
+    all_skus = get_all_skus()
+    ph_map   = get_ph_mapping()
+    print(f"  PH mapping: {len(ph_map)} SKUs mapped")
+
+    sku_list = [r["sku"] for r in all_skus]
+    sku_info = {r["sku"]: r for r in all_skus}
+    results  = {w: {} for w in windows}
+    total_batches = (len(sku_list) + BATCH_SIZE - 1) // BATCH_SIZE
+
+    for window, (start, end) in windows.items():
+        print(f"\n  📅 Window: {window} ({start} → {end})")
+        for i in range(0, len(sku_list), BATCH_SIZE):
+            batch     = sku_list[i:i+BATCH_SIZE]
+            batch_num = i // BATCH_SIZE + 1
+            print(f"    Batch {batch_num}/{total_batches}...", end="\r")
+
+            orders = fetch_orders_for_skus(batch, start, end)
+            if not orders:
+                continue
+
+            order_ids  = list(set(r["order_id"] for r in orders))
+            fees_map   = fetch_fees_for_orders(order_ids)
+            ppc_map    = fetch_ppc_for_skus(batch, start, end)
+            refund_map = fetch_refunds_for_skus(batch, start, end)
+
+            window_data = calc_sku_economics(orders, fees_map, ppc_map, refund_map)
+            results[window].update(window_data)
+
+        print(f"    → {len(results[window])} SKUs with data      ")
+
+    # Load ALL SKUs into PostgreSQL
+    all_sku_set = set(r["sku"] for r in all_skus)
+    print(f"\n📦 Loading {len(all_sku_set)} SKUs into PostgreSQL...")
+
+    loaded = 0
+    for sku in all_sku_set:
+        d3m  = results["3m"].get(sku, {})
+        d30d = results["30d"].get(sku, {})
+        d10d = results["10d"].get(sku, {})
+        d5d  = results["5d"].get(sku, {})
+        info = sku_info.get(sku, {})
+        asin = d30d.get("asin") or d3m.get("asin") or info.get("item_id")
+
+        try:
+            query("""
+                INSERT INTO raw_input_data (
+                    run_id, sku_id, sku_name, asin, ph_holder, account,
+                    nnr_pct_3m, nnr_pct_30d, nnr_pct_10d, nnr_pct_5d,
+                    orders_3m, orders_30d, orders_10d, orders_5d,
+                    revenue_3m, revenue_30d, revenue_10d, revenue_5d,
+                    nnr_gbp_3m, nnr_gbp_30d,
+                    total_income_3m, total_expenses_3m, margin_pct_3m,
+                    postage_pct_income_3m, postage_pct_income,
+                    sessions_3m, sessions_30d, cvr_pct_3m, cvr_pct_30d
+                ) VALUES (
+                    %s,%s,%s,%s,%s,%s,
+                    %s,%s,%s,%s,
+                    %s,%s,%s,%s,
+                    %s,%s,%s,%s,
+                    %s,%s,
+                    %s,%s,%s,
+                    %s,%s,
+                    %s,%s,%s,%s
+                )
+                ON CONFLICT (run_id, sku_id) DO UPDATE SET
+                    nnr_pct_30d = EXCLUDED.nnr_pct_30d,
+                    nnr_pct_3m  = EXCLUDED.nnr_pct_3m
+            """, (
+                run_id, sku, sku, asin,
+                ph_map.get(sku, "Unassigned"), "Amazon-UK-FBM",
+                d3m.get("nnr_pct"),  d30d.get("nnr_pct"),
+                d10d.get("nnr_pct"), d5d.get("nnr_pct"),
+                d3m.get("orders"),   d30d.get("orders"),
+                d10d.get("orders"),  d5d.get("orders"),
+                d3m.get("customer_paid"),  d30d.get("customer_paid"),
+                d10d.get("customer_paid"), d5d.get("customer_paid"),
+                d3m.get("nnr"),   d30d.get("nnr"),
+                d3m.get("total_income"),   d3m.get("total_expenses"),
+                d3m.get("margin_pct"),
+                d3m.get("postage_pct"),    d3m.get("postage_pct"),
+                d3m.get("sessions"),  d30d.get("sessions"),
+                d3m.get("cvr_pct"),   d30d.get("cvr_pct"),
+            ), fetch=False)
+            loaded += 1
+        except Exception as e:
+            pass
+
+    query(
+        "UPDATE pipeline_runs SET status='READY', total_skus_processed=%s WHERE run_id=%s",
+        (loaded, run_id), fetch=False
+    )
+    print(f"\n✅ Done! {loaded} SKUs loaded into {run_id}")
+    return run_id
+
+
+if __name__ == "__main__":
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    rows  = query(
+        "SELECT run_id FROM pipeline_runs WHERE run_id LIKE %s ORDER BY run_id DESC LIMIT 1",
+        (f"RUN-{today}-%",)
+    )
+    seq    = str(int(rows[0]["run_id"][-3:]) + 1).zfill(3) if rows else "001"
+    run_id = f"RUN-{today}-{seq}"
+    query(
+        "INSERT INTO pipeline_runs (run_id, rule_version_id, status) VALUES (%s, 'v1.0', 'LOADING')",
+        (run_id,), fetch=False
+    )
+    fetch_and_load(run_id)

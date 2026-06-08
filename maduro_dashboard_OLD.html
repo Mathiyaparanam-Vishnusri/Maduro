@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MADURO — SKU Intelligence</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #0a0b0e;
+    --surface:  #111318;
+    --border:   #1e2128;
+    --muted:    #3a3f4a;
+    --text:     #e8eaf0;
+    --sub:      #6b7280;
+    --dark-green:  #00e676;
+    --light-green: #69f0ae;
+    --amber:    #ffb300;
+    --red:      #ff1744;
+    --purple:   #e040fb;
+    --blue:     #40c4ff;
+    --hold:     #ff9100;
+    --reject:   #546e7a;
+    --approve:  #00e676;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,230,118,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,230,118,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrapper { position: relative; z-index: 1; max-width: 1400px; margin: 0 auto; padding: 0 24px; }
+
+  /* Header */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 20px 0;
+    position: sticky;
+    top: 0;
+    background: rgba(10,11,14,0.95);
+    backdrop-filter: blur(12px);
+    z-index: 100;
+  }
+
+  .header-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .logo-mark {
+    width: 36px; height: 36px;
+    background: var(--dark-green);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 800;
+    color: #000;
+    letter-spacing: -1px;
+  }
+
+  .logo-text {
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: 3px;
+    color: var(--text);
+  }
+
+  .logo-sub {
+    font-size: 10px;
+    color: var(--sub);
+    letter-spacing: 2px;
+    font-family: 'DM Mono', monospace;
+    text-transform: uppercase;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .run-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--sub);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 6px 12px;
+    border-radius: 6px;
+  }
+
+  .refresh-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .refresh-btn:hover {
+    border-color: var(--dark-green);
+    color: var(--dark-green);
+  }
+
+  .pulse {
+    width: 8px; height: 8px;
+    background: var(--dark-green);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.8); }
+  }
+
+  /* Stats bar */
+  .stats-bar {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 12px;
+    padding: 24px 0;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+
+  .stat-card:hover { border-color: var(--muted); }
+
+  .stat-card::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 2px;
+  }
+
+  .stat-card.green::after  { background: var(--dark-green); }
+  .stat-card.amber::after  { background: var(--amber); }
+  .stat-card.red::after    { background: var(--red); }
+  .stat-card.hold::after   { background: var(--hold); }
+  .stat-card.approve::after{ background: var(--approve); }
+  .stat-card.total::after  { background: var(--blue); }
+
+  .stat-label {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--sub);
+    font-family: 'DM Mono', monospace;
+    margin-bottom: 8px;
+  }
+
+  .stat-value {
+    font-size: 32px;
+    font-weight: 800;
+    line-height: 1;
+  }
+
+  .stat-card.green  .stat-value { color: var(--dark-green); }
+  .stat-card.amber  .stat-value { color: var(--amber); }
+  .stat-card.red    .stat-value { color: var(--red); }
+  .stat-card.hold   .stat-value { color: var(--hold); }
+  .stat-card.approve .stat-value { color: var(--approve); }
+  .stat-card.total  .stat-value { color: var(--blue); }
+
+  /* Section */
+  .section {
+    margin-bottom: 32px;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+
+  .section-title {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--sub);
+    font-family: 'DM Mono', monospace;
+  }
+
+  /* Mission cards */
+  .missions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 16px;
+  }
+
+  .mission-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.2s;
+    animation: fadeIn 0.4s ease forwards;
+    opacity: 0;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .mission-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--muted);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  }
+
+  .mission-card.RED_STRIKE { border-left: 3px solid var(--red); }
+  .mission-card.AMBER_FIX  { border-left: 3px solid var(--amber); }
+  .mission-card.AMBER_WATCH{ border-left: 3px solid var(--hold); }
+  .mission-card.HOLD       { border-left: 3px solid var(--muted); }
+  .mission-card.REJECT     { border-left: 3px solid var(--reject); opacity: 0.6; }
+
+  .card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+
+  .sku-name {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    word-break: break-all;
+    max-width: 220px;
+  }
+
+  .mission-badge {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-family: 'DM Mono', monospace;
+    white-space: nowrap;
+  }
+
+  .badge-RED_STRIKE  { background: rgba(255,23,68,0.15);  color: var(--red); }
+  .badge-AMBER_FIX   { background: rgba(255,179,0,0.15);  color: var(--amber); }
+  .badge-AMBER_WATCH { background: rgba(255,145,0,0.15);  color: var(--hold); }
+  .badge-HOLD        { background: rgba(84,110,122,0.2);  color: #90a4ae; }
+  .badge-REJECT      { background: rgba(84,110,122,0.1);  color: var(--muted); }
+  .badge-NA          { background: rgba(84,110,122,0.1);  color: var(--muted); }
+
+  .card-metrics {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .metric {
+    background: rgba(255,255,255,0.03);
+    border-radius: 8px;
+    padding: 8px;
+  }
+
+  .metric-label {
+    font-size: 9px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--sub);
+    font-family: 'DM Mono', monospace;
+    margin-bottom: 4px;
+  }
+
+  .metric-value {
+    font-size: 15px;
+    font-weight: 700;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+
+  .state-dot {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+  }
+
+  .dot-Dark_Green   { background: var(--dark-green); box-shadow: 0 0 6px var(--dark-green); }
+  .dot-Light_Green  { background: var(--light-green); }
+  .dot-Amber        { background: var(--amber); box-shadow: 0 0 6px var(--amber); }
+  .dot-Red          { background: var(--red); box-shadow: 0 0 6px var(--red); animation: pulse 1.5s infinite; }
+  .dot-Purple       { background: var(--purple); }
+
+  .driver-tag {
+    font-size: 10px;
+    font-family: 'DM Mono', monospace;
+    color: var(--sub);
+    background: var(--border);
+    padding: 3px 8px;
+    border-radius: 4px;
+  }
+
+  /* SKU table */
+  .sku-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .sku-table th {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--sub);
+    font-family: 'DM Mono', monospace;
+    font-weight: 500;
+    padding: 10px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sku-table td {
+    padding: 12px 16px;
+    font-size: 13px;
+    border-bottom: 1px solid rgba(30,33,40,0.5);
+    font-family: 'DM Mono', monospace;
+  }
+
+  .sku-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+  .nnr-positive { color: var(--dark-green); }
+  .nnr-warning  { color: var(--amber); }
+  .nnr-negative { color: var(--red); }
+
+  .state-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .pill-Dark_Green  { background: rgba(0,230,118,0.1);  color: var(--dark-green); }
+  .pill-Light_Green { background: rgba(105,240,174,0.1);color: var(--light-green); }
+  .pill-Amber       { background: rgba(255,179,0,0.1);  color: var(--amber); }
+  .pill-Red         { background: rgba(255,23,68,0.1);  color: var(--red); }
+  .pill-Purple      { background: rgba(224,64,251,0.1); color: var(--purple); }
+
+  /* Loading */
+  .loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 80px;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .spinner {
+    width: 32px; height: 32px;
+    border: 2px solid var(--border);
+    border-top-color: var(--dark-green);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .loading-text {
+    font-size: 12px;
+    color: var(--sub);
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 2px;
+  }
+
+  /* Empty state */
+  .empty {
+    text-align: center;
+    padding: 60px;
+    color: var(--sub);
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+  }
+
+  /* Tab bar */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 4px;
+    border-radius: 12px;
+    width: fit-content;
+  }
+
+  .tab {
+    padding: 8px 20px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--sub);
+    font-family: 'DM Mono', monospace;
+    border: none;
+    background: none;
+  }
+
+  .tab.active {
+    background: var(--border);
+    color: var(--text);
+  }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* Last updated */
+  .last-updated {
+    font-size: 11px;
+    color: var(--sub);
+    font-family: 'DM Mono', monospace;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrapper">
+    <div class="header-inner">
+      <div class="logo">
+        <div class="logo-mark">M</div>
+        <div>
+          <div class="logo-text">MADURO</div>
+          <div class="logo-sub">SKU Economic Health Intelligence</div>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="pulse"></div>
+        <span class="run-badge" id="runBadge">Loading...</span>
+        <button class="refresh-btn" onclick="loadData()">↻ Refresh</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="wrapper" style="padding-top:24px; padding-bottom:48px;">
+
+  <!-- Stats -->
+  <div class="stats-bar" id="statsBar">
+    <div class="stat-card total"><div class="stat-label">Total SKUs</div><div class="stat-value" id="statTotal">—</div></div>
+    <div class="stat-card green"><div class="stat-label">Dark Green</div><div class="stat-value" id="statDarkGreen">—</div></div>
+    <div class="stat-card green"><div class="stat-label">Light Green</div><div class="stat-value" id="statLightGreen">—</div></div>
+    <div class="stat-card amber"><div class="stat-label">Amber</div><div class="stat-value" id="statAmber">—</div></div>
+    <div class="stat-card red"><div class="stat-label">Red</div><div class="stat-value" id="statRed">—</div></div>
+    <div class="stat-card hold"><div class="stat-label">On Hold</div><div class="stat-value" id="statHold">—</div></div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('missions')">Mission Cards</button>
+    <button class="tab" onclick="switchTab('skus')">SKU Overview</button>
+  </div>
+
+  <!-- Missions Tab -->
+  <div class="tab-panel active" id="tab-missions">
+    <div class="section">
+      <div class="section-header">
+        <span class="section-title">Active Missions</span>
+        <span class="last-updated" id="lastUpdated"></span>
+      </div>
+      <div class="missions-grid" id="missionsGrid">
+        <div class="loading"><div class="spinner"></div><div class="loading-text">Fetching missions...</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SKUs Tab -->
+  <div class="tab-panel" id="tab-skus">
+    <div class="section">
+      <div class="section-header">
+        <span class="section-title">SKU Health Overview</span>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden;">
+        <table class="sku-table" id="skuTable">
+          <thead>
+            <tr>
+              <th>SKU</th>
+              <th>State</th>
+              <th>NNR% 30D</th>
+              <th>NNR% 3M</th>
+              <th>Orders 3M</th>
+              <th>Revenue 3M</th>
+              <th>Primary Driver</th>
+              <th>Next Review</th>
+            </tr>
+          </thead>
+          <tbody id="skuBody">
+            <tr><td colspan="8"><div class="loading"><div class="spinner"></div></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const API = 'https://enrolled-macintosh-simply-concentration.trycloudflare.com';
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    t.classList.toggle('active', ['missions','skus'][i] === name);
+  });
+  document.querySelectorAll('.tab-panel').forEach(p => {
+    p.classList.toggle('active', p.id === 'tab-' + name);
+  });
+}
+
+function nnrColor(v) {
+  if (v === null || v === undefined) return '';
+  if (v < 0) return 'nnr-negative';
+  if (v < 5) return 'nnr-warning';
+  return 'nnr-positive';
+}
+
+function formatNum(v, decimals=1) {
+  if (v === null || v === undefined) return '—';
+  return Number(v).toFixed(decimals);
+}
+
+function formatCurrency(v) {
+  if (v === null || v === undefined) return '—';
+  return '£' + Number(v).toLocaleString('en-GB', {minimumFractionDigits:0, maximumFractionDigits:0});
+}
+
+function missionClass(m) {
+  if (m.status === 'APPROVE') return m.mission_type;
+  return m.status;
+}
+
+function badgeClass(m) {
+  if (m.status === 'APPROVE') return 'badge-' + m.mission_type;
+  if (m.status === 'HOLD') return 'badge-HOLD';
+  return 'badge-REJECT';
+}
+
+function badgeLabel(m) {
+  if (m.status === 'APPROVE') return m.mission_type.replace('_',' ');
+  if (m.status === 'HOLD') return 'ON HOLD';
+  if (m.status === 'REJECT') return 'NO ACTION';
+  return m.status;
+}
+
+async function loadData() {
+  try {
+    // Get latest run
+    const run = await fetch(`${API}/runs/latest`).then(r=>r.json());
+    const runId = run.run_id;
+    document.getElementById('runBadge').textContent = runId;
+    document.getElementById('lastUpdated').textContent =
+      'Updated ' + new Date().toLocaleTimeString();
+
+    // Get SKUs + agent outputs
+    const [skusData, missionsData, a1Data, a2Data, a3Data] = await Promise.all([
+      fetch(`${API}/runs/${runId}/skus`).then(r=>r.json()),
+      fetch(`${API}/missions/${runId}`).then(r=>r.json()),
+      fetch(`${API}/agent-output/${runId}/AGENT_1`).then(r=>r.json()),
+      fetch(`${API}/agent-output/${runId}/AGENT_2`).then(r=>r.json()),
+      fetch(`${API}/agent-output/${runId}/AGENT_3`).then(r=>r.json()),
+    ]);
+
+    const skus = skusData.skus || [];
+    const missions = missionsData.missions || [];
+    const a1Map = {};
+    const a2Map = {};
+    const a3Map = {};
+    (a1Data.results||[]).forEach(r => a1Map[r.sku_id] = r.output_data);
+    (a2Data.results||[]).forEach(r => a2Map[r.sku_id] = r.output_data);
+    (a3Data.results||[]).forEach(r => a3Map[r.sku_id] = r.output_data);
+
+    // Stats
+    const states = Object.values(a1Map).map(d => d.current_state);
+    document.getElementById('statTotal').textContent = skus.length;
+    document.getElementById('statDarkGreen').textContent = states.filter(s=>s==='Dark_Green').length;
+    document.getElementById('statLightGreen').textContent = states.filter(s=>s==='Light_Green').length;
+    document.getElementById('statAmber').textContent = states.filter(s=>s==='Amber').length;
+    document.getElementById('statRed').textContent = states.filter(s=>s==='Red').length;
+    document.getElementById('statHold').textContent = missions.filter(m=>m.status==='HOLD').length;
+
+    // Missions grid — show non-rejected first
+    const sorted = [...missions].sort((a,b) => {
+      const order = {APPROVE:0, HOLD:1, REJECT:2};
+      return (order[a.status]||2) - (order[b.status]||2);
+    });
+
+    const grid = document.getElementById('missionsGrid');
+    if (!sorted.length) {
+      grid.innerHTML = '<div class="empty">No missions for this run</div>';
+    } else {
+      grid.innerHTML = sorted.map((m, i) => {
+        const a1 = a1Map[m.sku_id] || {};
+        const a2 = a2Map[m.sku_id] || {};
+        const sku = skus.find(s => s.sku_id === m.sku_id) || {};
+        const state = m.current_state || a1.current_state || 'Purple';
+        const nnr30 = sku.nnr_pct_30d;
+        const nnr3m = sku.nnr_pct_3m;
+        const driver = m.primary_driver || a2.primary_driver || '—';
+
+        return `
+        <div class="mission-card ${missionClass(m)}" style="animation-delay:${i*30}ms">
+          <div class="card-top">
+            <div class="sku-name">${m.sku_id}</div>
+            <span class="mission-badge ${badgeClass(m)}">${badgeLabel(m)}</span>
+          </div>
+          <div class="card-metrics">
+            <div class="metric">
+              <div class="metric-label">NNR% 30D</div>
+              <div class="metric-value ${nnrColor(nnr30)}">${formatNum(nnr30)}%</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">NNR% 3M</div>
+              <div class="metric-value ${nnrColor(nnr3m)}">${formatNum(nnr3m)}%</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Revenue 3M</div>
+              <div class="metric-value">${formatCurrency(sku.revenue_3m)}</div>
+            </div>
+          </div>
+          <div class="card-footer">
+            <div class="state-dot">
+              <span class="dot dot-${state}"></span>
+              <span style="color:var(--sub);font-size:12px;">${state.replace('_',' ')}</span>
+            </div>
+            <span class="driver-tag">${driver.replace(/_/g,' ')}</span>
+          </div>
+          ${m.block_reason ? `<div style="margin-top:10px;font-size:10px;color:var(--sub);font-family:'DM Mono',monospace;">blocked: ${m.block_reason}</div>` : ''}
+        </div>`;
+      }).join('');
+    }
+
+    // SKU table
+    const skuBody = document.getElementById('skuBody');
+    skuBody.innerHTML = skus.map(s => {
+      const a1 = a1Map[s.sku_id] || {};
+      const a2 = a2Map[s.sku_id] || {};
+      const a3 = a3Map[s.sku_id] || {};
+      const state = a1.current_state || 'Purple';
+      return `
+      <tr>
+        <td style="color:var(--text)">${s.sku_id}</td>
+        <td><span class="state-pill pill-${state}"><span class="dot dot-${state}" style="width:6px;height:6px"></span>${state.replace('_',' ')}</span></td>
+        <td class="${nnrColor(s.nnr_pct_30d)}">${formatNum(s.nnr_pct_30d)}%</td>
+        <td class="${nnrColor(s.nnr_pct_3m)}">${formatNum(s.nnr_pct_3m)}%</td>
+        <td>${s.orders_3m || '—'}</td>
+        <td>${formatCurrency(s.revenue_3m)}</td>
+        <td style="color:var(--sub)">${(a2.primary_driver||'—').replace(/_/g,' ')}</td>
+        <td style="color:var(--sub)">${a3.next_review_date || '—'}</td>
+      </tr>`;
+    }).join('');
+
+  } catch(e) {
+    console.error(e);
+    document.getElementById('missionsGrid').innerHTML =
+      `<div class="empty">⚠ Cannot connect to API at ${API}<br><br>Make sure MADURO API is running on port 8088</div>`;
+  }
+}
+
+// Load on start
+loadData();
+
+// Auto-refresh every 5 minutes
+setInterval(loadData, 5 * 60 * 1000);
+</script>
+</body>
+</html>

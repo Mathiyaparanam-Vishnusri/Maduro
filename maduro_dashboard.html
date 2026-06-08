@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MADURO — Mission Intelligence</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#080a0f;--surface:#0e1117;--card:#12161e;--border:#1c2130;--border2:#252d40;--text:#e6eaf5;--sub:#5a6480;--muted:#2d3448;--green:#00d67e;--gdim:rgba(0,214,126,0.12);--lgreen:#4dffa0;--amber:#f5a623;--adim:rgba(245,166,35,0.12);--red:#ff3b5c;--rdim:rgba(255,59,92,0.12);--purple:#c77dff;--blue:#4da6ff;--hold:#ff9b3d;--hdim:rgba(255,155,61,0.1);}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;min-height:100vh;}
+body::before{content:'';position:fixed;top:-200px;left:50%;transform:translateX(-50%);width:800px;height:400px;background:radial-gradient(ellipse,rgba(0,214,126,0.04) 0%,transparent 70%);pointer-events:none;z-index:0;}
+.page{position:relative;z-index:1;max-width:1480px;margin:0 auto;padding:0 28px 80px;}
+header{position:sticky;top:0;background:rgba(8,10,15,0.94);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);z-index:200;padding:0 28px;}
+.hi{max-width:1480px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:60px;}
+.brand{display:flex;align-items:center;gap:12px;}
+.bm{width:34px;height:34px;background:var(--green);border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:#000;}
+.bn{font-size:17px;font-weight:800;letter-spacing:3px;}
+.bs{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--sub);letter-spacing:1.5px;margin-top:1px;}
+.hc{display:flex;align-items:center;gap:10px;}
+.rtag{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--sub);background:var(--surface);border:1px solid var(--border);padding:5px 12px;border-radius:5px;}
+.ld{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:lp 2s ease-in-out infinite;}
+@keyframes lp{0%,100%{opacity:1}50%{opacity:0.3}}
+.btn{display:flex;align-items:center;gap:7px;background:var(--surface);border:1px solid var(--border2);color:var(--text);padding:7px 16px;border-radius:7px;font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;}
+.btn:hover{border-color:var(--green);color:var(--green);}
+/* PH BAR */
+.phbar{padding:18px 0 0;display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+.phlbl{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--sub);letter-spacing:2px;text-transform:uppercase;white-space:nowrap;}
+.phchips{display:flex;gap:8px;flex-wrap:wrap;}
+.phc{display:flex;align-items:center;gap:8px;padding:6px 14px;border-radius:50px;border:1px solid var(--border2);background:var(--surface);font-size:13px;font-weight:600;cursor:pointer;color:var(--sub);white-space:nowrap;user-select:none;transition:all .15s;}
+.phc.active{background:var(--gdim);border-color:var(--green);color:var(--green);}
+.phcnt{font-family:'JetBrains Mono',monospace;font-size:10px;background:var(--muted);border-radius:50px;padding:1px 7px;color:var(--sub);}
+.phc.active .phcnt{background:rgba(0,214,126,0.2);color:var(--green);}
+/* STATS */
+.sr{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;padding:20px 0 24px;}
+.sc{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;position:relative;overflow:hidden;}
+.sb{position:absolute;bottom:0;left:0;right:0;height:2px;}
+.sl{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--sub);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px;}
+.sv{font-size:28px;font-weight:800;line-height:1;}
+/* TABS */
+.tabs{display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:4px;width:fit-content;margin-bottom:20px;}
+.tab{padding:7px 18px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;color:var(--sub);border:none;background:none;font-family:'Outfit',sans-serif;transition:all .15s;}
+.tab.active{background:var(--border2);color:var(--text);}
+.tp{display:none;}.tp.active{display:block;}
+.sh{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border);}
+.st2{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--sub);letter-spacing:2px;text-transform:uppercase;}
+.scnt{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--sub);}
+/* MISSION CARDS */
+.mg{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:14px;}
+.mc{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;transition:all 0.2s;animation:su .3s ease both;}
+@keyframes su{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.mc:hover{border-color:var(--border2);transform:translateY(-2px);box-shadow:0 12px 40px rgba(0,0,0,.5);}
+.mc.or2{border-top:3px solid var(--red);}.mc.oa{border-top:3px solid var(--amber);}.mc.hc2{border-top:3px solid var(--hold);opacity:.82;}.mc.rc{border-top:3px solid var(--muted);opacity:.45;}
+.mch{padding:14px 16px 12px;display:flex;align-items:flex-start;justify-content:space-between;gap:10px;border-bottom:1px solid var(--border);}
+.msku{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;word-break:break-all;line-height:1.4;}
+.mb2{flex-shrink:0;font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;letter-spacing:.8px;padding:4px 10px;border-radius:20px;white-space:nowrap;}
+.mb2.rs{background:var(--rdim);color:var(--red);}.mb2.af{background:var(--adim);color:var(--amber);}.mb2.oh{background:var(--hdim);color:var(--hold);}.mb2.na{background:var(--muted);color:var(--sub);}
+.mcb{padding:14px 16px;}
+.orow{display:flex;align-items:center;gap:8px;margin-bottom:12px;}
+.oav{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;}
+.on2{font-size:13px;font-weight:600;}
+.ost{margin-left:auto;display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;}
+.sdot{width:7px;height:7px;border-radius:50%;}
+.ig2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;}
+.if3{background:var(--surface);border-radius:8px;padding:9px 11px;}
+.il{font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:1.5px;text-transform:uppercase;color:var(--sub);margin-bottom:4px;}
+.iv{font-size:13px;font-weight:600;line-height:1.3;}
+.iv.urg{color:var(--red)}.iv.wrn{color:var(--amber)}.iv.gd{color:var(--green)}.iv.mn{font-family:'JetBrains Mono',monospace;font-size:12px;}
+.ab{background:rgba(77,166,255,.06);border:1px solid rgba(77,166,255,.15);border-radius:8px;padding:10px 12px;margin-bottom:10px;}
+.al{font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:1.5px;text-transform:uppercase;color:var(--blue);margin-bottom:4px;}
+.at{font-size:12px;font-weight:500;line-height:1.5;}
+.bb2{background:rgba(255,155,61,.06);border:1px solid rgba(255,155,61,.15);border-radius:8px;padding:8px 12px;margin-bottom:10px;}
+.bl2{font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:1.5px;text-transform:uppercase;color:var(--hold);margin-bottom:3px;}
+.bt{font-size:12px;color:var(--hold);font-weight:500;}
+.mcf{padding:10px 16px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.dc{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--sub);background:var(--muted);padding:3px 9px;border-radius:4px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.cb{font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;padding:3px 9px;border-radius:4px;}
+/* TABLES */
+.tw{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;overflow-x:auto;}
+table{width:100%;border-collapse:collapse;min-width:900px;}
+thead th{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--sub);padding:12px 16px;text-align:left;border-bottom:1px solid var(--border);background:var(--surface);font-weight:500;white-space:nowrap;}
+tbody td{padding:11px 16px;font-size:12px;border-bottom:1px solid rgba(28,33,48,.6);font-family:'JetBrains Mono',monospace;vertical-align:top;}
+tbody tr:hover td{background:rgba(255,255,255,.015);}
+tbody tr:last-child td{border-bottom:none;}
+.spill{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;font-family:'Outfit',sans-serif;}
+.np{color:var(--green)}.nw2{color:var(--amber)}.nn{color:var(--red)}.ts{color:var(--sub);}
+/* PIPELINE */
+.pflow{display:flex;align-items:center;margin-bottom:24px;overflow-x:auto;padding:4px 0;}
+.fstep{display:flex;align-items:center;flex-shrink:0;}
+.fnode{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 14px;text-align:center;min-width:110px;}
+.fnode.ok{border-color:var(--green);background:var(--gdim);}
+.fnode.er{border-color:var(--red);background:var(--rdim);}
+.fnode.sk{opacity:.4;}
+.flbl{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--sub);letter-spacing:1px;}
+.fname{font-size:12px;font-weight:700;margin-top:3px;}
+.fcnt{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--sub);margin-top:2px;}
+.farr{font-size:18px;padding:0 5px;flex-shrink:0;color:var(--muted);}
+.farr.ok{color:var(--green);}
+.pgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+.agc{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;animation:su .3s ease both;}
+.agc:hover{border-color:var(--border2);}
+.agc.ok{border-top:3px solid var(--green);}.agc.er{border-top:3px solid var(--red);}.agc.wn{border-top:3px solid var(--amber);}
+.agh{padding:16px 18px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.agnum{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--sub);letter-spacing:2px;}
+.agname{font-size:15px;font-weight:700;margin-top:3px;}
+.agsb{font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;padding:4px 10px;border-radius:20px;}
+.bok{background:var(--gdim);color:var(--green);}.ber{background:var(--rdim);color:var(--red);}.bwn{background:var(--adim);color:var(--amber);}
+.agb{padding:16px 18px;}
+.ams{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px;}
+.am{background:var(--surface);border-radius:8px;padding:10px;}
+.aml{font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:1px;text-transform:uppercase;color:var(--sub);margin-bottom:4px;}
+.amv{font-size:20px;font-weight:800;}
+.ofs{display:flex;flex-wrap:wrap;gap:5px;}
+.oft{font-family:'JetBrains Mono',monospace;font-size:9px;background:var(--muted);color:var(--sub);padding:3px 8px;border-radius:4px;}
+.oft.nw3{background:rgba(0,214,126,.15);color:var(--green);}
+/* GATE */
+.gsums{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:22px;}
+.gcrd{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;text-align:center;}
+.glbl{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--sub);letter-spacing:1px;margin-bottom:6px;}
+.gnum{font-size:22px;font-weight:800;}
+.gbw{height:4px;background:var(--muted);border-radius:2px;margin-top:8px;overflow:hidden;}
+.gbf{height:100%;border-radius:2px;}
+.gfrow{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center;}
+.gfc{padding:5px 12px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border2);background:var(--surface);color:var(--sub);font-family:'JetBrains Mono',monospace;transition:all .15s;}
+.gfc.active{background:var(--border2);color:var(--text);}
+.gfc.fa.active{background:var(--gdim);border-color:var(--green);color:var(--green);}
+.gfc.fb3.active{background:var(--adim);border-color:var(--amber);color:var(--amber);}
+.gtw{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;overflow-x:auto;}
+.gt{width:100%;border-collapse:collapse;min-width:820px;}
+.gt th{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--sub);padding:12px 14px;text-align:left;border-bottom:1px solid var(--border);background:var(--surface);font-weight:500;white-space:nowrap;}
+.gt td{padding:10px 14px;font-size:12px;border-bottom:1px solid rgba(28,33,48,.6);font-family:'JetBrains Mono',monospace;vertical-align:middle;}
+.gt tr:hover td{background:rgba(255,255,255,.015);}
+.gt tr:last-child td{border-bottom:none;}
+.gp{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:rgba(0,214,126,.15);color:var(--green);font-size:11px;font-weight:700;}
+.gf4{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:rgba(255,59,92,.15);color:var(--red);font-size:11px;font-weight:700;}
+.gna{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:var(--muted);color:var(--sub);font-size:10px;font-weight:700;}
+.fb4{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;}
+.fbo{background:var(--gdim);color:var(--green);}.fbh{background:var(--hdim);color:var(--hold);}.fbr{background:var(--muted);color:var(--sub);}
+/* LOADING / ERROR */
+.loading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px;gap:14px;}
+.spinner{width:28px;height:28px;border:2px solid var(--border);border-top-color:var(--green);border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-lbl{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--sub);letter-spacing:1.5px;}
+.err-box{background:var(--rdim);border:1px solid rgba(255,59,92,.3);border-radius:12px;padding:24px 28px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--red);line-height:2;}
+::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--muted);border-radius:3px}
+</style>
+</head>
+<body>
+<header>
+  <div class="hi">
+    <div class="brand">
+      <div class="bm">M</div>
+      <div><div class="bn">MADURO</div><div class="bs">SKU Economic Health Intelligence</div></div>
+    </div>
+    <div class="hc">
+      <div class="ld"></div>
+      <div class="rtag" id="runTag">Connecting...</div>
+      <button class="btn" onclick="loadAll()">↻ Refresh</button>
+    </div>
+  </div>
+</header>
+
+<div class="page">
+  <div class="phbar"><span class="phlbl">View by PH</span><div class="phchips" id="phChips"></div></div>
+
+  <div class="sr">
+    <div class="sc"><div class="sb" style="background:var(--blue)"></div><div class="sl">Total SKUs</div><div class="sv" id="s-total" style="color:var(--blue)">—</div></div>
+    <div class="sc"><div class="sb" style="background:var(--purple)"></div><div class="sl">Purple</div><div class="sv" id="s-purple" style="color:var(--purple)">—</div></div>
+    <div class="sc"><div class="sb" style="background:var(--green)"></div><div class="sl">Dark Green</div><div class="sv" id="s-dg" style="color:var(--green)">—</div></div>
+    <div class="sc"><div class="sb" style="background:var(--lgreen)"></div><div class="sl">Light Green</div><div class="sv" id="s-lg" style="color:var(--lgreen)">—</div></div>
+    <div class="sc"><div class="sb" style="background:var(--amber)"></div><div class="sl">Amber</div><div class="sv" id="s-amber" style="color:var(--amber)">—</div></div>
+    <div class="sc"><div class="sb" style="background:var(--red)"></div><div class="sl">Red</div><div class="sv" id="s-red" style="color:var(--red)">—</div></div>
+    <div class="sc"><div class="sb" style="background:var(--green)"></div><div class="sl">OPEN Missions</div><div class="sv" id="s-open" style="color:var(--green)">—</div></div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="sTab('missions',this)">Mission Cards</button>
+    <button class="tab" onclick="sTab('pipeline',this)">Pipeline Status</button>
+    <button class="tab" onclick="sTab('gates',this)">Gate Analysis</button>
+    <button class="tab" onclick="sTab('skus',this)">SKU Overview</button>
+  </div>
+
+  <!-- MISSIONS -->
+  <div class="tp active" id="tab-missions">
+    <div class="sh"><span class="st2">Active Missions</span><span class="scnt" id="mCount"></span></div>
+    <div class="mg" id="mGrid"><div class="loading" style="grid-column:1/-1"><div class="spinner"></div><div class="loading-lbl">Loading missions...</div></div></div>
+  </div>
+
+  <!-- PIPELINE -->
+  <div class="tp" id="tab-pipeline">
+    <div class="sh"><span class="st2">Agent Pipeline Status</span><span class="scnt" id="pRunTag"></span></div>
+    <div class="pflow" id="pFlow"></div>
+    <div class="pgrid" id="aCards"><div class="loading" style="grid-column:1/-1"><div class="spinner"></div><div class="loading-lbl">Loading agent data...</div></div></div>
+  </div>
+
+  <!-- GATE ANALYSIS -->
+  <div class="tp" id="tab-gates">
+    <div class="sh"><span class="st2">Agent 4 — 5-Gate Mission Selector</span><span class="scnt" id="gCount"></span></div>
+    <div class="gsums" id="gSums"></div>
+    <div class="gfrow">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--sub);letter-spacing:1px">FILTER</span>
+      <div class="gfc active" onclick="fGate('ALL',this)">All SKUs</div>
+      <div class="gfc fa" onclick="fGate('OPEN',this)">OPEN</div>
+      <div class="gfc fb3" onclick="fGate('HOLD',this)">HOLD</div>
+      <div class="gfc" onclick="fGate('REJECT',this)">REJECT</div>
+      <div class="gfc" onclick="fGate('Gate1',this)">Blocked Gate 1</div>
+      <div class="gfc" onclick="fGate('Gate2',this)">Blocked Gate 2</div>
+      <div class="gfc" onclick="fGate('Gate3',this)">Blocked Gate 3</div>
+      <div class="gfc" onclick="fGate('Gate4',this)">Blocked Gate 4</div>
+      <div class="gfc" onclick="fGate('Gate5',this)">Blocked Gate 5</div>
+    </div>
+    <div class="gtw"><table class="gt">
+      <thead><tr>
+        <th>SKU</th><th>Owner</th><th>State</th>
+        <th style="text-align:center">G1 Data Quality</th>
+        <th style="text-align:center">G2 State Eligible</th>
+        <th style="text-align:center">G3 Persistence</th>
+        <th style="text-align:center">G4 Driver Quality</th>
+        <th style="text-align:center">G5 Escalation</th>
+        <th>Mission Conf</th><th>Block Reason</th><th>Decision</th>
+      </tr></thead>
+      <tbody id="gBody"><tr><td colspan="11"><div class="loading"><div class="spinner"></div></div></td></tr></tbody>
+    </table></div>
+  </div>
+
+  <!-- SKU OVERVIEW -->
+  <div class="tp" id="tab-skus">
+    <div class="sh"><span class="st2">SKU Health Overview</span><span class="scnt" id="skuCount"></span></div>
+    <div class="tw"><table>
+      <thead><tr><th>SKU / ASIN</th><th>Owner (PH)</th><th>State</th><th>NNR% 30D</th><th>NNR% 3M</th><th>Orders 3M</th><th>Revenue 3M</th><th>Primary Driver</th><th>Action Required</th><th>Deadline</th><th>Next Review</th></tr></thead>
+      <tbody id="sBody"><tr><td colspan="11"><div class="loading"><div class="spinner"></div></div></td></tr></tbody>
+    </table></div>
+  </div>
+</div>
+
+<script>
+const API = 'http://127.0.0.1:8088';
+
+// ── State ─────────────────────────────────────────────────────────
+let ALL_SKUS=[], ALL_MISSIONS=[], A1_MAP={}, A2_MAP={}, A3_MAP={}, A4_MAP={};
+let RUN_ID='', CPH='ALL', CGF='ALL';
+
+// ── Helpers ───────────────────────────────────────────────────────
+const AVC=[['#1F4E79','#4DA6FF'],['#6B2FA0','#C77DFF'],['#B45309','#F5A623'],['#065F46','#00D67E'],['#831843','#FF3B5C'],['#1E3A5F','#69C4FF'],['#4A1942','#E879F9'],['#1C4532','#4DFFA0']];
+function av(n){let h=0;for(let c of n)h=(h*31+c.charCodeAt(0))&0xffff;const[b,f]=AVC[h%AVC.length];return{bg:b,fg:f,i:n.split(' ').map(p=>p[0]||'').join('').toUpperCase().slice(0,2)};}
+function num(v,d=1){return v==null?'—':(+v).toFixed(d);}
+function cur(v){return v==null?'—':'£'+Math.round(+v).toLocaleString('en-GB');}
+function nc(v){return v==null?'':+v<0?'nn':+v<5?'nw2':'np';}
+function sc(s){return{Dark_Green:'var(--green)',Light_Green:'var(--lgreen)',Amber:'var(--amber)',Red:'var(--red)',Purple:'var(--purple)',Data_Risk:'var(--sub)'}[s]||'var(--sub)';}
+function sp2(s){const c=sc(s);return`<span class="spill" style="background:${c}18;color:${c}"><span style="width:6px;height:6px;border-radius:50%;background:${c};display:inline-block"></span>${(s||'—').replace(/_/g,' ')}</span>`;}
+function dlc(d){if(!d)return'';const x=Math.ceil((new Date(d)-new Date)/86400000);return x<=1?'urg':x<=3?'wrn':'gd';}
+function dll(d){if(!d)return'—';const x=Math.ceil((new Date(d)-new Date)/86400000);return x<0?Math.abs(x)+'d overdue':x===0?'Today':x+'d';}
+function mclass(m){if(m.status==='OPEN')return m.mission_type==='RED_STRIKE'?'or2':'oa';if(m.status==='HOLD')return'hc2';return'rc';}
+function mbdg(m){if(m.status==='OPEN'){if(m.mission_type==='RED_STRIKE')return'<span class="mb2 rs">🔴 RED STRIKE</span>';return'<span class="mb2 af">🟡 AMBER FIX</span>';}if(m.status==='HOLD')return'<span class="mb2 oh">⏸ ON HOLD</span>';return'<span class="mb2 na">— NO ACTION</span>';}
+function gb2(v){return v===null?'<span class="gna">—</span>':v?'<span class="gp">✓</span>':'<span class="gf4">✗</span>';}
+
+// ── Tab / Filter ──────────────────────────────────────────────────
+function sTab(n,el){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));document.querySelectorAll('.tp').forEach(p=>p.classList.remove('active'));el.classList.add('active');document.getElementById('tab-'+n).classList.add('active');}
+function fPH(ph,el){CPH=ph;document.querySelectorAll('.phc').forEach(c=>c.classList.remove('active'));el.classList.add('active');rMissions();rSKU();rGateTable();}
+function fGate(f,el){CGF=f;document.querySelectorAll('.gfc').forEach(c=>c.classList.remove('active'));el.classList.add('active');rGateTable();}
+
+// ── PH Chips ──────────────────────────────────────────────────────
+function buildPH(){
+  const cnt={};ALL_MISSIONS.filter(m=>m.status!=='REJECT').forEach(m=>{const p=m.ph_holder||'Unassigned';cnt[p]=(cnt[p]||0)+1;});
+  const c=document.getElementById('phChips');c.innerHTML='';
+  const a=document.createElement('div');a.className='phc active';
+  a.innerHTML='All PHs <span class="phcnt">'+ALL_MISSIONS.filter(m=>m.status!=='REJECT').length+'</span>';
+  a.onclick=()=>fPH('ALL',a);c.appendChild(a);
+  Object.entries(cnt).sort((a,b)=>b[1]-a[1]).forEach(([ph,n])=>{
+    const v=av(ph);const chip=document.createElement('div');chip.className='phc';
+    chip.innerHTML='<span style="width:20px;height:20px;border-radius:50%;background:'+v.bg+';color:'+v.fg+';display:inline-flex;align-items:center;justify-content:center;font-size:8px;font-weight:700">'+v.i+'</span>'+ph+'<span class="phcnt">'+n+'</span>';
+    chip.onclick=()=>fPH(ph,chip);c.appendChild(chip);
+  });
+}
+
+// ── Stats ─────────────────────────────────────────────────────────
+function updateStats(){
+  const states=Object.values(A1_MAP).map(d=>d.current_state||d.s||'');
+  document.getElementById('s-total').textContent=ALL_SKUS.length;
+  document.getElementById('s-purple').textContent=states.filter(s=>s==='Purple').length;
+  document.getElementById('s-dg').textContent=states.filter(s=>s==='Dark_Green').length;
+  document.getElementById('s-lg').textContent=states.filter(s=>s==='Light_Green').length;
+  document.getElementById('s-amber').textContent=states.filter(s=>s==='Amber').length;
+  document.getElementById('s-red').textContent=states.filter(s=>s==='Red').length;
+  document.getElementById('s-open').textContent=ALL_MISSIONS.filter(m=>m.status==='OPEN').length;
+}
+
+// ── Mission Cards ─────────────────────────────────────────────────
+function rMissions(){
+  const f=CPH==='ALL'?ALL_MISSIONS:ALL_MISSIONS.filter(m=>m.ph_holder===CPH);
+  const o=m=>{if(m.status==='OPEN'&&m.mission_type==='RED_STRIKE')return 0;if(m.status==='OPEN')return 1;if(m.status==='HOLD')return 2;return 3;};
+  const s=[...f].sort((a,b)=>o(a)-o(b));
+  document.getElementById('mCount').textContent=s.filter(m=>m.status==='OPEN').length+' open · '+s.filter(m=>m.status==='HOLD').length+' held';
+  if(!s.length){document.getElementById('mGrid').innerHTML='<div class="loading" style="grid-column:1/-1"><div class="loading-lbl">No missions found</div></div>';return;}
+  document.getElementById('mGrid').innerHTML=s.map((m,i)=>{
+    const sku=ALL_SKUS.find(x=>x.sku_id===m.sku_id)||{};
+    const a1=A1_MAP[m.sku_id]||{};const a2=A2_MAP[m.sku_id]||{};
+    const st=m.current_state||a1.current_state||'—';const stc=sc(st);
+    const ph=m.ph_holder||'Unassigned';const a=av(ph);
+    const dr=(m.primary_driver||a2.primary_driver||'—').replace(/_/g,' ');
+    const cf=m.mission_confidence;const cfc=cf>=90?'var(--green)':cf>=75?'var(--amber)':'var(--red)';
+    const as2=m.status==='OPEN'&&m.action_required?'<div class="ab"><div class="al">▸ Action Required</div><div class="at">'+m.action_required+'</div></div>':m.block_reason?'<div class="bb2"><div class="bl2">⏸ Hold Reason</div><div class="bt">'+m.block_reason+'</div></div>':'';
+    const n30=sku.nnr_pct_30d??m.nnr_pct_30d;const n3m=sku.nnr_pct_3m??m.nnr_pct_3m;
+    return'<div class="mc '+mclass(m)+'" style="animation-delay:'+Math.min(i,20)*30+'ms"><div class="mch"><div class="msku">'+m.sku_id+'<br><span style="font-size:10px;color:var(--sub);font-weight:400">'+(sku.asin||m.asin||'')+'</span></div>'+mbdg(m)+'</div><div class="mcb"><div class="orow"><div class="oav" style="background:'+a.bg+';color:'+a.fg+'">'+a.i+'</div><div class="on2">'+ph+'</div><div class="ost" style="color:'+stc+'"><span class="sdot" style="background:'+stc+'"></span>'+st.replace(/_/g,' ')+'</div></div><div class="ig2"><div class="if3"><div class="il">Deadline</div><div class="iv '+dlc(m.deadline)+'">'+(m.deadline||'—')+'</div><div style="font-size:10px;color:var(--sub);margin-top:2px">'+dll(m.deadline)+'</div></div><div class="if3"><div class="il">Next Review</div><div class="iv mn">'+(m.next_review_date||'—')+'</div></div><div class="if3"><div class="il">NNR% 30D</div><div class="iv mn '+nc(n30)+'">'+num(n30)+'%</div></div><div class="if3"><div class="il">NNR% 3M</div><div class="iv mn '+nc(n3m)+'">'+num(n3m)+'%</div></div></div>'+as2+'</div><div class="mcf"><span class="dc">'+dr+'</span>'+(cf!=null?'<span class="cb" style="background:'+cfc+'18;color:'+cfc+'">conf '+cf+'</span>':'')+'</div></div>';
+  }).join('');
+}
+
+// ── Pipeline Status ───────────────────────────────────────────────
+function rPipeline(agentData){
+  const agents=['AGENT_0','AGENT_1','AGENT_2','AGENT_3','AGENT_4','AGENT_5'];
+  const names={AGENT_0:'Data Guard',AGENT_1:'State Sentinel',AGENT_2:'Driver Analyst',AGENT_3:'Cadence Control',AGENT_4:'Mission Selector',AGENT_5:'Learning'};
+  const steps=[{l:'RAW DATA',n:'MySQL Fetcher',c:ALL_SKUS.length+' SKUs'},...agents.map(id=>{const d=agentData[id]||{};return{l:id,n:names[id],c:d.skus_processed!=null?d.skus_processed+' processed':'—',ok:d.status==='ok'||d.passed>0};}),{l:'OUTPUT',n:'Slack+Dashboard',c:'Sent ✓',ok:true}];
+  document.getElementById('pRunTag').textContent=RUN_ID+' · '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})+' UTC';
+  document.getElementById('pFlow').innerHTML=steps.map((s,i)=>'<div class="fstep"><div class="fnode '+(s.ok!==false?'ok':'er')+'"><div class="flbl">'+s.l+'</div><div class="fname" style="color:'+(s.ok!==false?'var(--green)':'var(--red)')+'">'+s.n+'</div><div class="fcnt">'+(s.c||'—')+'</div></div>'+(i<steps.length-1?'<div class="farr '+(s.ok!==false?'ok':'')+'">→</div>':'')+'</div>').join('');
+
+  document.getElementById('aCards').innerHTML=agents.map((id,i)=>{
+    const d=agentData[id]||{};const ok=d.status==='ok'||d.passed>0;
+    const statusClass=ok?'ok':'er';const badgeClass=ok?'bok':'ber';const badgeTxt=ok?'✅ PASSED':'❌ FAILED';
+
+    // Build 3 key metrics from whatever the API returns
+    const meta=d.meta||{};
+    const m1=[meta.m1_label||'Processed', meta.m1_value??d.skus_processed??'—', meta.m1_color||'var(--blue)'];
+    const m2=[meta.m2_label||'Pass',       meta.m2_value??d.passed??'—',          meta.m2_color||'var(--green)'];
+    const m3=[meta.m3_label||'Fail',       meta.m3_value??d.failed??'—',          meta.m3_color||'var(--red)'];
+
+    const outs=(d.output_fields||[]).map(f=>{const nw=(f+'').includes('★')||d.new_fields?.includes(f);return'<span class="oft'+(nw?' nw3':'')+'">'+(f+'').replace('★','')+(nw?' ★':'')+'</span>';}).join('');
+
+    return'<div class="agc '+statusClass+'" style="animation-delay:'+(i*60)+'ms"><div class="agh"><div><div class="agnum">'+id+(d.duration_ms?' · '+(d.duration_ms/1000).toFixed(2)+'s':'')+'</div><div class="agname">'+names[id]+'</div></div><span class="agsb '+badgeClass+'">'+badgeTxt+'</span></div><div class="agb"><div class="ams"><div class="am"><div class="aml">'+m1[0]+'</div><div class="amv" style="color:'+m1[2]+'">'+m1[1]+'</div></div><div class="am"><div class="aml">'+m2[0]+'</div><div class="amv" style="color:'+m2[2]+'">'+m2[1]+'</div></div><div class="am"><div class="aml">'+m3[0]+'</div><div class="amv" style="color:'+m3[2]+'">'+m3[1]+'</div></div></div>'+(outs?'<div style="font-family:\'JetBrains Mono\',monospace;font-size:9px;color:var(--sub);letter-spacing:1px;margin-bottom:8px;text-transform:uppercase">Output Fields <span style="color:var(--green);font-size:8px">(★ new)</span></div><div class="ofs">'+outs+'</div>':'')+'</div></div>';
+  }).join('');
+}
+
+// ── Gate Analysis ─────────────────────────────────────────────────
+function rGateSummary(gateMap){
+  const vals=Object.values(gateMap);const t=vals.length;
+  const gv=k=>vals.filter(g=>g[k]===true).length;
+  const op=vals.filter(g=>g.status==='OPEN').length;
+  document.getElementById('gCount').textContent=t+' SKUs evaluated — '+op+' OPEN missions created';
+  const gs=[
+    {l:'Gate 1',d:'Data Quality',   p:gv('g1'),tot:t},
+    {l:'Gate 2',d:'State Eligible', p:gv('g2'),tot:t},
+    {l:'Gate 3',d:'Persistence',    p:gv('g3'),tot:gv('g2')},
+    {l:'Gate 4',d:'Driver Quality', p:gv('g4'),tot:gv('g3')},
+    {l:'Gate 5',d:'Escalation',     p:gv('g5'),tot:gv('g4')},
+    {l:'Final', d:'OPEN Missions',  p:op,tot:gv('g5')},
+  ];
+  document.getElementById('gSums').innerHTML=gs.map(g=>{
+    const pct=g.tot>0?Math.round(g.p/g.tot*100):0;const c=pct===100?'var(--green)':pct>=70?'var(--amber)':'var(--red)';
+    return'<div class="gcrd"><div class="glbl">'+g.l+'<br><span style="font-size:8px">'+g.d+'</span></div><div class="gnum" style="color:'+c+'">'+g.p+'</div><div style="font-family:\'JetBrains Mono\',monospace;font-size:9px;color:var(--sub);margin-top:2px">of '+g.tot+' ('+pct+'%)</div><div class="gbw"><div class="gbf" style="width:'+pct+'%;background:'+c+'"></div></div></div>';
+  }).join('');
+}
+
+function rGateTable(){
+  // Build gate map from A4 output + missions
+  const gateMap={};
+  ALL_SKUS.forEach(s=>{
+    const a4=A4_MAP[s.sku_id]||{};const m=ALL_MISSIONS.find(x=>x.sku_id===s.sku_id)||{};
+    gateMap[s.sku_id]={
+      g1: a4.gate1_pass??null, g2: a4.gate2_pass??null,
+      g3: a4.gate3_pass??null, g4: a4.gate4_pass??null,
+      g5: a4.gate5_pass??null,
+      conf: m.mission_confidence??null,
+      block: a4.block_gate??m.block_reason??null,
+      status: m.status||'REJECT',
+    };
+  });
+
+  let skus=[...ALL_SKUS];
+  if(CPH!=='ALL')skus=skus.filter(s=>s.ph_holder===CPH);
+  if(CGF!=='ALL')skus=skus.filter(s=>{
+    const g=gateMap[s.sku_id]||{};
+    if(CGF==='OPEN')return g.status==='OPEN';
+    if(CGF==='HOLD')return g.status==='HOLD';
+    if(CGF==='REJECT')return g.status==='REJECT';
+    return g.block===CGF;
+  });
+
+  document.getElementById('gBody').innerHTML=skus.map(s=>{
+    const g=gateMap[s.sku_id]||{};const a1=A1_MAP[s.sku_id]||{};
+    const ph=s.ph_holder||'Unassigned';const a=av(ph);
+    const st=a1.current_state||'—';
+    const fb=g.status==='OPEN'?'fbo':g.status==='HOLD'?'fbh':'fbr';
+    const fbl=g.status==='OPEN'?'✅ OPEN':g.status==='HOLD'?'⏸ HOLD':'— REJECT';
+    const blk=g.block||( g.status==='OPEN'?'All 5 gates passed':'—');
+    const blkc=g.block?'var(--amber)':g.status==='OPEN'?'var(--green)':'var(--sub)';
+    const cc=g.conf!=null?g.conf>=90?'var(--green)':g.conf>=75?'var(--amber)':'var(--red)':'var(--sub)';
+    return'<tr><td style="color:var(--text)">'+s.sku_id+(s.asin?'<br><span style="color:var(--sub);font-size:10px">'+s.asin+'</span>':'')+'</td><td><span style="display:flex;align-items:center;gap:6px"><span style="width:20px;height:20px;border-radius:50%;background:'+a.bg+';color:'+a.fg+';display:inline-flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;flex-shrink:0">'+a.i+'</span><span style="font-family:\'Outfit\',sans-serif;font-size:12px">'+ph+'</span></span></td><td>'+sp2(st)+'</td><td style="text-align:center">'+gb2(g.g1)+'</td><td style="text-align:center">'+gb2(g.g2)+'</td><td style="text-align:center">'+gb2(g.g3)+'</td><td style="text-align:center">'+gb2(g.g4)+'</td><td style="text-align:center">'+gb2(g.g5)+'</td><td style="color:'+cc+';font-weight:700">'+(g.conf!=null?g.conf+'%':'—')+'</td><td style="color:'+blkc+';font-size:11px">'+blk+'</td><td><span class="fb4 '+fb+'">'+fbl+'</span></td></tr>';
+  }).join('');
+}
+
+// ── SKU Table ─────────────────────────────────────────────────────
+function rSKU(){
+  const skus=CPH==='ALL'?ALL_SKUS:ALL_SKUS.filter(s=>s.ph_holder===CPH);
+  document.getElementById('skuCount').textContent=skus.length+' SKUs';
+  const mMap={};ALL_MISSIONS.forEach(m=>{mMap[m.sku_id]=m;});
+  document.getElementById('sBody').innerHTML=skus.map(s=>{
+    const a1=A1_MAP[s.sku_id]||{};const a2=A2_MAP[s.sku_id]||{};const m=mMap[s.sku_id]||{};
+    const ph=s.ph_holder||'Unassigned';const a=av(ph);const st=a1.current_state||'—';
+    return'<tr><td style="color:var(--text)">'+s.sku_id+(s.asin?'<br><span style="color:var(--sub);font-size:10px">'+s.asin+'</span>':'')+'</td><td><span style="display:flex;align-items:center;gap:7px"><span style="width:22px;height:22px;border-radius:50%;background:'+a.bg+';color:'+a.fg+';display:inline-flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;flex-shrink:0">'+a.i+'</span><span style="color:var(--text);font-family:\'Outfit\',sans-serif;font-size:12px">'+ph+'</span></span></td><td>'+sp2(st)+'</td><td class="'+nc(s.nnr_pct_30d)+'">'+num(s.nnr_pct_30d)+'%</td><td class="'+nc(s.nnr_pct_3m)+'">'+num(s.nnr_pct_3m)+'%</td><td class="ts">'+(s.orders_3m||'—')+'</td><td class="ts">'+cur(s.revenue_3m)+'</td><td class="ts">'+((a2.primary_driver||'—').replace(/_/g,' '))+'</td><td style="color:var(--blue);font-family:\'Outfit\',sans-serif;font-size:11px;max-width:220px;white-space:normal;line-height:1.4">'+(m.action_required||'—')+'</td><td class="'+(dlc(m.deadline)==='urg'?'nn':dlc(m.deadline)==='wrn'?'nw2':'ts')+'">'+(m.deadline||'—')+(m.deadline?'<br><span style="font-size:9px;opacity:.7">'+dll(m.deadline)+'</span>':'')+'</td><td class="ts">'+(m.next_review_date||'—')+'</td></tr>';
+  }).join('');
+}
+
+// ── API loader ────────────────────────────────────────────────────
+async function loadAll(){
+  try {
+    const run=await fetch(API+'/runs/latest').then(r=>r.json());
+    RUN_ID=run.run_id;
+    document.getElementById('runTag').textContent=RUN_ID;
+
+    const [skusR,missionsR,a1R,a2R,a3R,a4R,pipelineR]=await Promise.all([
+      fetch(API+'/runs/'+RUN_ID+'/skus').then(r=>r.json()),
+      fetch(API+'/missions/'+RUN_ID).then(r=>r.json()),
+      fetch(API+'/agent-output/'+RUN_ID+'/AGENT_1').then(r=>r.json()),
+      fetch(API+'/agent-output/'+RUN_ID+'/AGENT_2').then(r=>r.json()),
+      fetch(API+'/agent-output/'+RUN_ID+'/AGENT_3').then(r=>r.json()),
+      fetch(API+'/agent-output/'+RUN_ID+'/AGENT_4').then(r=>r.json()),
+      fetch(API+'/runs/'+RUN_ID+'/pipeline-status').then(r=>r.json()).catch(()=>({})),
+    ]);
+
+    ALL_SKUS     = skusR.skus||skusR.data||[];
+    ALL_MISSIONS = missionsR.missions||missionsR.data||[];
+
+    A1_MAP={};A2_MAP={};A3_MAP={};A4_MAP={};
+    (a1R.results||a1R.data||[]).forEach(r=>{A1_MAP[r.sku_id]=r.output_data||r;});
+    (a2R.results||a2R.data||[]).forEach(r=>{A2_MAP[r.sku_id]=r.output_data||r;});
+    (a3R.results||a3R.data||[]).forEach(r=>{A3_MAP[r.sku_id]=r.output_data||r;});
+    (a4R.results||a4R.data||[]).forEach(r=>{A4_MAP[r.sku_id]=r.output_data||r;});
+
+    // Agent pipeline summary (from /pipeline-status or derived)
+    const agentData=pipelineR.agents||{};
+
+    updateStats();
+    buildPH();
+    rMissions();
+    rPipeline(agentData);
+    rGateSummary(buildGateMap());
+    rGateTable();
+    rSKU();
+
+  } catch(err){
+    console.error(err);
+    const errHtml='<div class="err-box">⚠ Cannot reach MADURO API at '+API+'<br><br>Make sure FastAPI is running:<br><span style="color:var(--lgreen)">uvicorn api.main:app --port 8088</span><br><br>'+err.message+'</div>';
+    document.getElementById('mGrid').innerHTML=errHtml;
+    document.getElementById('aCards').innerHTML=errHtml;
+    document.getElementById('runTag').textContent='API offline';
+  }
+}
+
+function buildGateMap(){
+  const map={};
+  ALL_SKUS.forEach(s=>{
+    const a4=A4_MAP[s.sku_id]||{};
+    const m=ALL_MISSIONS.find(x=>x.sku_id===s.sku_id)||{};
+    map[s.sku_id]={
+      g1: a4.gate1_pass??null, g2: a4.gate2_pass??null,
+      g3: a4.gate3_pass??null, g4: a4.gate4_pass??null,
+      g5: a4.gate5_pass??null,
+      conf: m.mission_confidence??null,
+      block: a4.block_gate||m.block_reason||null,
+      status: m.status||'REJECT',
+    };
+  });
+  return map;
+}
+
+loadAll();
+setInterval(loadAll, 5*60*1000);
+</script>
+</body>
+</html>
